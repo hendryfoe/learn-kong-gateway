@@ -1,0 +1,78 @@
+version: "3.9"
+
+networks:
+  kong-net:
+    external: true
+
+services:
+  kong-database:
+    image: postgres:9.6.24-alpine
+    restart: on-failure
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - 5432:5432
+    networks:
+      - kong-net
+
+  kong-migrations:
+    image: kong/kong-gateway:3.0.1.0
+    restart: on-failure
+    entrypoint: sh -c "sleep 10 && kong migrations bootstrap"
+    environment:
+      KONG_DATABASE: ${KONG_DATABASE}
+      KONG_PG_HOST: ${KONG_PG_HOST}
+      KONG_PG_PASSWORD: ${POSTGRES_PASSWORD}
+      KONG_PASSWORD: ${KONG_PASSWORD}
+    depends_on:
+      - kong-database
+    networks:
+      - kong-net
+
+  kong-gateway:
+    image: kong/kong-gateway:3.0.1.0
+    restart: on-failure
+    environment:
+      KONG_DATABASE: ${KONG_DATABASE}
+      KONG_PG_HOST: ${KONG_PG_HOST}
+      KONG_PG_USER: ${POSTGRES_USER}
+      KONG_PG_PASSWORD: ${POSTGRES_PASSWORD}
+      KONG_PROXY_ACCESS_LOG: ${KONG_PROXY_ACCESS_LOG}
+      KONG_ADMIN_ACCESS_LOG: ${KONG_ADMIN_ACCESS_LOG}
+      KONG_PROXY_ERROR_LOG: ${KONG_PROXY_ERROR_LOG}
+      KONG_ADMIN_ERROR_LOG: ${KONG_ADMIN_ERROR_LOG}
+      KONG_ADMIN_LISTEN: ${KONG_ADMIN_LISTEN}
+      KONG_ADMIN_GUI_URL: ${KONG_ADMIN_GUI_URL}
+      KONG_LICENSE_DATA: ${KONG_LICENSE_DATA}
+    ports:
+      - 8000:8000
+      - 8443:8443
+      - 8001:8001
+      - 8444:8444
+      - 8002:8002
+      - 8445:8445
+      - 8003:8003
+      - 8004:8004
+      # - $KONG_PROXY_SSL_PORT:8443
+    volumes:
+      - ./tmp/log:/tmp
+    networks:
+      - kong-net
+
+  deno-apps:
+    build:
+      context: .
+    restart: on-failure
+    env_file:
+      - .env
+    # volumes:
+    #   - ./.env:/app/.env
+    ports:
+      - 3001:3001
+      - 3011:3011
+      - 3002:3002
+      - 3003:3003
+      - 3004:3004
+      - 3005:3005
